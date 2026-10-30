@@ -1,0 +1,22 @@
+name: Karlsruhe Anmeldung watch
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # start a new 5h50m watch run; queued runs keep coverage gap-free
+  workflow_dispatch:
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check every minute
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TARGET_DATE: "2026-11-02"
+        run: python3 check.py 350
