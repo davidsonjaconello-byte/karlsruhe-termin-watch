@@ -66,21 +66,27 @@ def find_slots():
     return sorted(set(slots))
 
 
-def notify(slots):
+def push(title, msg, priority):
     if not TOPIC:
         return
-    msg = "Free on %s:\n%s\nBook now!" % (TARGET, "\n".join(slots[:10]))
     req = urllib.request.Request("https://ntfy.sh/" + TOPIC, data=msg.encode(), method="POST")
-    req.add_header("Title", "Karlsruhe Anmeldung slot free!")
-    req.add_header("Priority", "urgent")
+    req.add_header("Title", title)
+    req.add_header("Priority", priority)
     req.add_header("Click", BOOK_URL)
     urllib.request.urlopen(req, timeout=30)
+
+
+def notify(slots):
+    msg = "Free on %s:\n%s\nBook now!" % (TARGET, "\n".join(slots[:10]))
+    push("Karlsruhe Anmeldung slot free!", msg, "urgent")
 
 
 def watch(minutes, every=60):
     """Check every `every` seconds for `minutes`; push only when new slots show up."""
     stop = time.time() + minutes * 60
     seen = set()
+    errors = 0
+    first = True
     while time.time() < stop:
         if datetime.now(timezone(timedelta(hours=1))).strftime("%Y-%m-%d") > TARGET:
             print("target date has passed, stopping")
@@ -92,8 +98,15 @@ def watch(minutes, every=60):
             if new:
                 notify(new)
             seen = set(slots)
+            errors = 0
+            if first and not slots:
+                push("Watcher running", "Checking %s every minute. Nothing free right now." % TARGET, "low")
         except Exception as e:
+            errors += 1
             print(time.strftime("%H:%M:%S"), "ERROR", e, flush=True)
+            if errors == 5:
+                push("Watcher can't read the booking site", "5 failed checks in a row: %s" % e, "high")
+        first = False
         time.sleep(every)
 
 
